@@ -1,98 +1,104 @@
 import { AntDesign, Ionicons } from '@expo/vector-icons';
 import React, { Component } from 'react';
-import { Text, TouchableOpacity, View, StyleSheet, FlatList, KeyboardAvoidingView, Keyboard } from 'react-native';
+import { Text, TouchableOpacity, View, StyleSheet, FlatList, 
+  KeyboardAvoidingView, Keyboard } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import { db } from '../firebaseConfig';
+import { doc, onSnapshot, updateDoc, arrayUnion, arrayRemove } from 'firebase/firestore';
 
 export default class TodoModal extends Component {
   state = {
     newCard: "",
+    list: this.props.list || { id: '', cards: [], color: "#808080", name: "Unnamed List" },
   };
 
-  toggleTodoComplete = (index) => {
-    const list = this.props.list || { cards: [] };
-    if (list.cards[index]) {  // Make sure the card exists
-      list.cards[index].completed = !list.cards[index].completed;
-      this.props.updateList(list);
+  componentDidMount() {
+    if (this.state.list.id) {
+      this.unsubscribe = onSnapshot(doc(db, 'lists', this.state.list.id), (doc) => {
+        if (doc.exists()) {
+          this.setState({ list: doc.data() });
+        }
+      });
     }
+  }
+
+  componentWillUnmount() {
+    if (this.unsubscribe) {
+      this.unsubscribe();
+    }
+  }
+
+  toggleTodoComplete = async (index) => {
+    let updatedCards = [...this.state.list.cards];
+    updatedCards[index].completed = !updatedCards[index].completed;
+  
+    const listRef = doc(db, "lists", this.state.list.id);
+    await updateDoc(listRef, { cards: updatedCards });
+  
+    this.setState({ list: { ...this.state.list, cards: updatedCards } });
   };
-
-  addTodo = () => {
-    // Ensure list is defined
-    const list = this.props.list || { cards: [] };
-    if (this.state.newCard.trim() === "") return; // Prevent adding empty cards
-    list.cards.push({ title: this.state.newCard, completed: false });
-    this.props.updateList(list);
+  
+  addTodo = async () => {
+    if (!this.state.newCard.trim()) return;
+  
+    const listRef = doc(db, "lists", this.state.list.id);
+    await updateDoc(listRef, {
+      cards: arrayUnion({ title: this.state.newCard, completed: false })
+    });
+  
     this.setState({ newCard: "" });
-
     Keyboard.dismiss();
   };
 
-  renderCards = (card, index) => {
-    return (
-      <View style={styles.cardcontainer}>
-        <TouchableOpacity onPress={() => this.toggleTodoComplete(index)}>
-          <Ionicons
-            name={card.completed ? "square" : "square-outline"} // Ensure correct icon names
-            size={24}
-            color="#615c5c"
-            style={{ width: 32 }}
-          />
-        </TouchableOpacity>
-        <Text
-          style={[
-            styles.todo,
-            {
-              textDecorationLine: card.completed ? "line-through" : "none",
-              color: card.completed ? "#54b367" : "#9eada1",
-            },
-          ]}
-        >
-          {card.title}
-        </Text>
-      </View>
-    );
-  };
+  renderCards = ({ item, index }) => (
+    <View style={styles.cardContainer}>
+      <TouchableOpacity onPress={() => this.toggleTodoComplete(index)}>
+        <Ionicons
+          name={item.completed ? "checkbox" : "square-outline"}
+          size={24}
+          color={item.completed ? "#54b367" : "#615c5c"}
+          style={{ width: 32 }}
+        />
+      </TouchableOpacity>
+      <Text style={[styles.todo, { textDecorationLine: item.completed ? "line-through" : "none", color: item.completed ? "#54b367" : "#9eada1" }]}>
+        {item.title}
+      </Text>
+    </View>
+  );
 
   render() {
-    // Ensure list is defined
-    const list = this.props.list || { cards: [], color: '#808080', name: 'Unnamed List' };
-    const completedCount = (list.cards || []).filter((card) => card.completed).length;
+    const { list } = this.state;
+    const completedCount = (list.cards || []).filter(card => card.completed).length;
 
     return (
       <KeyboardAvoidingView style={{ flex: 1 }} behavior="padding">
         <SafeAreaView style={styles.container}>
-          <TouchableOpacity
-            style={{ position: "absolute", top: 64, right: 32, zIndex: 10 }}
-            onPress={this.props.closeModal}
-          >
+          <TouchableOpacity style={styles.closeButton} onPress={this.props.closeModal}>
             <AntDesign name="close" size={24} color="#000000" />
           </TouchableOpacity>
 
           <View style={[styles.section, styles.header, { borderBottomColor: list.color }]}>
-            <View>
-              <Text style={styles.title}>{list.name}</Text>
-              <Text style={styles.taskCount}>{completedCount} of {list.cards.length} tasks</Text>
-            </View>
+            <Text style={styles.title}>{list.name}</Text>
+            <Text style={styles.taskCount}>{completedCount} of {list.cards.length} tasks</Text>
           </View>
 
-          <View style={[styles.section, { flex: 3 }]}>
-            <FlatList
-              data={list.cards || []} 
-              renderItem={({ item, index }) => this.renderCards(item, index)}
-              keyExtractor={(item, index) => index.toString()}
-              contentContainerStyle={{ paddingHorizontal: 32, paddingVertical: 64 }}
-              showsVerticalScrollIndicator={false}
-            />
-          </View>
+          <FlatList
+            data={list.cards || []}
+            renderItem={this.renderCards}
+            keyExtractor={(item, index) => index.toString()}
+            contentContainerStyle={{ paddingHorizontal: 32, paddingVertical: 64 }}
+            showsVerticalScrollIndicator={false}
+          />
 
           <View style={[styles.section, styles.footer]}>
             <TextInput
               style={[styles.input, { borderColor: list.color }]}
+              placeholder="Add a task..."
               onChangeText={(text) => this.setState({ newCard: text })}
               value={this.state.newCard}
             />
-            <TouchableOpacity style={[styles.card, { backgroundColor: list.color }]} onPress={this.addTodo}>
+            <TouchableOpacity style={[styles.addButton, { backgroundColor: list.color }]} onPress={this.addTodo}>
               <AntDesign name="plus" size={16} color="#ffffff" />
             </TouchableOpacity>
           </View>
@@ -109,7 +115,6 @@ const styles = StyleSheet.create({
     alignItems: "center",
   },
   section: {
-    flex: 1,
     alignSelf: "stretch",
   },
   header: {
@@ -129,9 +134,10 @@ const styles = StyleSheet.create({
     fontWeight: "600",
   },
   footer: {
-    paddingHorizontal: 32,
     flexDirection: "row",
     alignItems: "center",
+    paddingHorizontal: 32,
+    paddingVertical: 20,
   },
   input: {
     flex: 1,
@@ -141,20 +147,26 @@ const styles = StyleSheet.create({
     marginRight: 8,
     paddingHorizontal: 8,
   },
-  card: {
+  addButton: {
     borderRadius: 4,
     padding: 16,
     alignItems: "center",
     justifyContent: "center",
   },
-  cardcontainer: {
-    paddingVertical: 16,
+  closeButton: {
+    position: "absolute",
+    top: 64,
+    right: 32,
+    zIndex: 10,
+  },
+  cardContainer: {
     flexDirection: "row",
     alignItems: "center",
+    paddingVertical: 16,
   },
   todo: {
-    color: "#000000",
-    fontWeight: "700",
     fontSize: 16,
+    fontWeight: "700",
+    marginLeft: 10,
   },
 });

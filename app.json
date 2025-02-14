@@ -3,6 +3,7 @@
     "name": "MoodiTask",
     "slug": "MoodiTask",
     "version": "1.0.0",
+   "scheme": "MoodiTask",
     "orientation": "portrait",
     "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
@@ -10,7 +11,7 @@
     "splash": {
       "image": "./assets/splash-icon.png",
       "resizeMode": "contain",
-      "backgroundColor": "#ffffff"
+      "backgroundColor": "#17b198"
     },
     "ios": {
       "supportsTablet": true

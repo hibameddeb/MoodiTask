@@ -1,173 +1,200 @@
-import React, { useState, useRef } from 'react';
-import { StyleSheet, Dimensions, TouchableWithoutFeedback, SafeAreaView, View, Text, TouchableOpacity, Modal, FlatList } from 'react-native';
-import { format, addWeeks, startOfWeek, addDays, subDays, isSameDay } from 'date-fns';
-import Carousel from 'react-native-reanimated-carousel';
-import Octicons from '@expo/vector-icons/Octicons';
-import { useNavigation } from '@react-navigation/native';
+import React, { useState, useEffect } from 'react';
+import { 
+    View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Dimensions 
+} from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
-import tempData from './tempData';
-import Cards from './Cards';
-import AddListModal from './AddListModal.js';
-
+import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
+import Carousel from 'react-native-reanimated-carousel';
+import { db, auth, collection, query, where, getDocs, orderBy } from '../firebaseConfig';
+import { useNavigation, useFocusEffect } from '@react-navigation/native'; // Import useFocusEffect
 const { width } = Dimensions.get('window');
 
 export default function Home() {
-  const [week, setWeek] = useState(0);
-  const navigation = useNavigation();
-  const [value, setValue] = useState(new Date());
-  const [addTodoVisible, setAddTodoVisible] = useState(false);
-  const [list, setList] = useState(tempData);
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [lists, setLists] = useState([]);
+    const [user, setUser] = useState(null);
+    const navigation = useNavigation();
 
-  const toggleAddTodoModal = () => {
-    setAddTodoVisible(!addTodoVisible);
-  };
-
-  const addList = (newList) => {
-    const newItem = { ...newList, id: list.length + 1, Cards: [] };
-    setList([...list, newItem]);
-  };
-
-  const updateList = (updatedList) => {
-    setList(prevList => prevList.map(item => item.id === updatedList.id ? updatedList : item));
-  };
-
-  const renderList = (list) => <Cards list={list} updateList={updateList} />;
-
-  const weeks = React.useMemo(() => {
-    const start = startOfWeek(addWeeks(new Date(), week));
-
-    return [-1, 0, 1].map(adj => {
-      return Array.from({ length: 7 }).map((_, index) => {
-        const date = addDays(addWeeks(start, adj), index);
-        return {
-          weekday: format(date, 'EEE'),
-          date,
-        };
-      });
-    });
-  }, [week]);
-
-  const days = React.useMemo(() => {
-    return [subDays(value, 1), value, addDays(value, 1)];
-  }, [value]);
-
-  return (
-    <SafeAreaView style={{ flex: 1 }}>
-      <View style={styles.container}>
-        <View style={styles.header}>
-          <Text style={styles.title}>Your Schedule</Text>
-        </View>
-
-        <View style={styles.picker}>
-          <Carousel
-            width={width}
-            height={74}
-            data={weeks}
-            loop={false}
-            defaultIndex={1}
-            onSnapToItem={(index) => {
-              if (index !== 1) {
-                const newWeek = week + (index - 1);
-                setWeek(newWeek);
-                setValue(addWeeks(value, index - 1));
-              }
-            }}
-            renderItem={({ item }) => (
-              <View style={styles.itemRow}>
-                {item.map((day, dateIndex) => {
-                  const isActive = isSameDay(value, day.date);
-                  return (
-                    <TouchableWithoutFeedback key={dateIndex} onPress={() => setValue(day.date)}>
-                      <View style={[styles.item, isActive && { backgroundColor: '#111', borderColor: '#111' }]}>
-                        <Text style={[styles.itemWeekday, isActive && { color: '#fff' }]}>{day.weekday}</Text>
-                        <Text style={[styles.itemDate, isActive && { color: '#fff' }]}>{day.date.getDate()}</Text>
-                      </View>
-                    </TouchableWithoutFeedback>
-                  );
-                })}
-              </View>
-            )}
-          />
-        </View>
-
-        <Carousel
-          width={width}
-          height={300}
-          data={days}
-          loop={false}
-          defaultIndex={1}
-          onSnapToItem={(index) => {
-            const nextValue = addDays(value, index - 1);
-            setValue(nextValue);
-            if (format(value, 'w') !== format(nextValue, 'w')) {
-              setWeek(format(value, 'w') < format(nextValue, 'w') ? week + 1 : week - 1);
+    
+    useFocusEffect(
+        React.useCallback(() => {
+            if (user) {
+                fetchListsForDate(user.uid, selectedDate);
             }
-          }}
-          renderItem={({ item }) => (
-            <View style={{ flex: 1, paddingHorizontal: 16, paddingVertical: 24 }}>
-              <Text style={styles.subtitle}>{format(item, 'EEEE, MMMM d, yyyy')}</Text>
-              <View style={styles.placeholder}>
-                <View style={styles.placeholderInset}>
-                  <View style={styles.container}>
-                    <Modal visible={addTodoVisible}  animationType="slide" onRequestClose={toggleAddTodoModal}>
-                      <View style={styles.modalContainer}>
-                        <AddListModal closeModal={toggleAddTodoModal} addList={addList} />
-                      </View>
-                    </Modal>
+        }, [user, selectedDate])
+    );
 
-                    <View style={{ flexDirection: 'row' }}>
-                      <View style={styles.divider} />
-                      <Text style={styles.title}>To-Do List</Text>
-                      <View style={styles.divider} />
-                    </View>
+    useEffect(() => {
+        const unsubscribe = auth.onAuthStateChanged((currentUser) => {
+            setUser(currentUser);
+            if (currentUser) fetchListsForDate(currentUser.uid, selectedDate);
+        });
+        return () => unsubscribe();
+    }, []);
 
-                    <View style={{  alignItems:"center",justifyContent: "flex-end", }}>
-                      <TouchableOpacity style={styles.addlist} onPress={toggleAddTodoModal}>
-                        <AntDesign name="plus" size={16} color={"#0080ff"}paddingVertical="10" />
-                      </TouchableOpacity>
-                      <Text style={styles.add}>Add List</Text>
-                      <TouchableOpacity style={styles.addlist} onPress={()=> navigation.navigate('Cards')}>
-                        <Octicons name="checklist" size={24} color="black" paddingVertical="10"/>
-                      </TouchableOpacity>
-                      <Text style={styles.add}>See you're lists</Text>
-                    </View>
+    const fetchListsForDate = async (userId, date) => {
+        const startOfDay = new Date(date);
+        startOfDay.setHours(0, 0, 0, 0);
+        const endOfDay = new Date(date);
+        endOfDay.setHours(23, 59, 59, 999);
 
-                  </View>
-                </View>
+        const listsQuery = query(
+            collection(db, 'userId'),
+            where('userId', '==', userId),
+            where('date', '>=', startOfDay),
+            where('date', '<=', endOfDay),
+            orderBy('date', 'desc')
+        );
+        const querySnapshot = await getDocs(listsQuery);
+        setLists(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
+    };
 
+    const handleDateSelect = (date) => {
+        setSelectedDate(date);
+        if (user) fetchListsForDate(user.uid, date);
+    };
 
-              </View>
+    const renderCalendarItem = ({ item }) => {
+        const isActive = isSameDay(selectedDate, item.date);
+        return (
+            <TouchableOpacity
+                key={item.date.toString()} // Add a unique key
+                style={[styles.calendarItem, isActive && styles.activeCalendarItem]}
+                onPress={() => handleDateSelect(item.date)}
+            >
+                <Text style={[styles.calendarDay, isActive && styles.activeCalendarDay]}>{item.weekday}</Text>
+                <Text style={[styles.calendarDate, isActive && styles.activeCalendarDate]}>{item.date.getDate()}</Text>
+            </TouchableOpacity>
+        );
+    };
+
+    const renderListItem = ({ item }) => (
+        <View style={styles.listItem}>
+            <Text style={styles.listTitle}>{item.name}</Text>
+            <Text style={styles.listDate}>{format(item.createdAt.toDate(), 'PPPP')}</Text>
+        </View>
+    );
+
+    const weekDays = Array.from({ length: 7 }).map((_, index) => {
+        const date = addDays(startOfWeek(new Date()), index);
+        return {
+            weekday: format(date, 'EEE'),
+            date,
+        };
+    });
+
+    return (
+        <SafeAreaView style={styles.container}>
+            <View style={styles.header}>
+                <Text style={styles.headerTitle}>Your Schedule</Text>
             </View>
 
+            <Carousel
+                width={width}
+                height={100}
+                data={[weekDays]} 
+                loop={false}
+                defaultIndex={0} 
+                renderItem={({ item }) => (
+                    <View style={styles.calendarRow}>
+                        {item.map((day, index) => renderCalendarItem({ item: day, index }))}
+                    </View>
+                )}
+            />
 
-          )}
-        />
-      </View>
-    </SafeAreaView>
-  );
+            <View style={styles.listsContainer}>
+                <Text style={styles.listsTitle}>Lists for {format(selectedDate, 'PPPP')}</Text>
+                <FlatList
+                    data={lists}
+                    keyExtractor={(item) => item.id.toString()} 
+                    horizontal={true}
+                    showsHorizontalScrollIndicator={false}
+                    renderItem={({ item }) => renderListItem(item)} 
+                    keyboardShouldPersistTaps="always"        
+                />
+            </View>
+
+            <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddListModal')}>
+                <AntDesign name="plus" size={24} color="white" />
+            </TouchableOpacity>
+        </SafeAreaView>
+    );
 }
 
 const styles = StyleSheet.create({
-  container: {
-    flex: 1,
-    paddingVertical: 24
-  },
-  header: {
-    paddingHorizontal: 16
-  },
-  title: {
-    fontSize: 32,
-    fontWeight: '700',
-    color: '#1d1d1d',
-    marginBottom: 12
-  },
-  picker: { flex: 1, maxHeight: 74, paddingVertical: 12, flexDirection: 'row', alignItems: 'center' },
-  subtitle: { fontSize: 17, fontWeight: '600', color: '#999999', marginBottom: 12 },
-  item: { flex: 1, height: 50, marginHorizontal: 4, paddingVertical: 6, paddingHorizontal: 4, borderWidth: 1, borderRadius: 8, borderColor: '#e3e3e3', flexDirection: 'column', alignItems: 'center' },
-  itemRow: { width, flexDirection: 'row', alignItems: 'flex-start', justifyContent: 'space-between', paddingHorizontal: 12 },
-  itemWeekday: { fontSize: 13, fontWeight: '500', color: '#737373', marginBottom: 4 },
-  itemDate: { fontSize: 15, fontWeight: '600', color: '#111' },
-  placeholder: { flexGrow: 1, flexShrink: 1, flexBasis: 0, height: 400, backgroundColor: 'transparent' },
-  placeholderInset: { borderWidth: 4, borderColor: '#e5e7eb', borderStyle: 'dashed', borderRadius: 9, flexGrow: 1, flexShrink: 1, flexBasis: 0 },
+    container: {
+        flex: 1,
+        backgroundColor: '#fff',
+    },
+    header: {
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ccc',
+    },
+    headerTitle: {
+        fontSize: 24,
+        fontWeight: 'bold',
+    },
+    calendarRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-between',
+        paddingHorizontal: 16,
+    },
+    calendarItem: {
+        alignItems: 'center',
+        padding: 8,
+        borderRadius: 8,
+    },
+    activeCalendarItem: {
+        backgroundColor: '#007AFF',
+    },
+    calendarDay: {
+        fontSize: 14,
+        color: '#333',
+    },
+    activeCalendarDay: {
+        color: '#fff',
+    },
+    calendarDate: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    activeCalendarDate: {
+        color: '#fff',
+    },
+    listsContainer: {
+        flex: 1,
+        padding: 16,
+        marginTop: "-380"
+    },
+    listsTitle: {
+        fontSize: 20,
+        fontWeight: '600',
+        marginBottom: 16,
+    },
+    listItem: {
+        padding: 16,
+        borderBottomWidth: 1,
+        borderBottomColor: '#ccc',
+    },
+    listTitle: {
+        fontSize: 16,
+        fontWeight: 'bold',
+    },
+    listDate: {
+        fontSize: 14,
+        color: '#666',
+    },
+    addButton: {
+        position: 'absolute',
+        bottom: 20,
+        right: 20,
+        backgroundColor: '#007AFF',
+        width: 56,
+        height: 56,
+        borderRadius: 28,
+        alignItems: 'center',
+        justifyContent: 'center',
+    },
 });
-

@@ -30,6 +30,7 @@
     "react-native-paper": "^5.13.1",
     "react-native-reanimated": "~3.16.1",
     "react-native-reanimated-carousel": "^3.5.1",
+    "react-native-swipe-list-view": "^3.2.9",
     "use-latest-callback": "^0.2.3",
     "yup": "^1.6.1"
   },
