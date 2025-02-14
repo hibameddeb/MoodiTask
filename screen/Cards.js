@@ -12,8 +12,9 @@ export default class Cards extends React.Component {
   };
 
   render() {
-    // Ensure list exists and has cards property
-    const list = this.props.list || { cards: [], color: '#808080', name: 'Unnamed List' };
+    const { list } = this.props; // Ensure list is coming from props
+    if (!list) return null; // Handle missing data safely
+
     const completedCount = (list.cards || []).filter(card => card.completed).length;
     const remainingCount = (list.cards || []).length - completedCount;
 
@@ -27,16 +28,16 @@ export default class Cards extends React.Component {
           <TodoModal 
             list={list} 
             closeModal={this.toggleListModal} 
-            updateList={this.props.updateList} 
+            updateList={this.props.updateList} // Ensure this function updates Firebase
           />
         </Modal>
 
         <TouchableOpacity
-          style={[styles.listContainer, { backgroundColor: list.color }]}
+          style={[styles.listContainer, { backgroundColor: list.color || '#808080' }]}
           onPress={this.toggleListModal}
         >
           <Text style={styles.listTitle} numberOfLines={1}>
-            {list.name}
+            {list.name || 'Unnamed List'}
           </Text>
 
           <View>
