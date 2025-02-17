@@ -32,30 +32,15 @@ const Exemple = () => {
   return (
     <View style={styles.container}>
       
-      <Modal
-        visible={addTodoVisible}
-        transparent={true}
-        animationType="slide"
-        onRequestClose={toggleAddTodoModal}
-      >
-        <View style={styles.modalContainer}>
-          <AddListModal closeModal={toggleAddTodoModal} addList={addList} />
-        </View>
-      </Modal>
+      
 
-      {/* Title Section */}
       <View style={{ flexDirection: 'row' }}>
         <View style={styles.divider} />
-        <Text style={styles.title}>To-Do List</Text>
+        <Text style={styles.title}>To-Do-List</Text>
         <View style={styles.divider} />
       </View>
 
-      <View style={{ marginVertical: 48, alignItems: "center" }}>
-        <TouchableOpacity style={styles.addlist} onPress={toggleAddTodoModal}>
-          <AntDesign name="plus" size={16} color={"#0080ff"} />
-        </TouchableOpacity>
-        <Text style={styles.add}>Add List</Text>
-      </View>
+
 
       <View style={{ height: 275, paddingLeft: 32 }}>
         <FlatList
@@ -91,7 +76,7 @@ const styles = StyleSheet.create({
     alignSelf: "center",
   },
   title: {
-    fontSize: 36,
+    fontSize: 30,
     fontWeight: "800",
     color: "#000000",
     paddingHorizontal: 64,

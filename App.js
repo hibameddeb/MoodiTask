@@ -15,6 +15,7 @@ import AddListModal from './Screen/AddListModal.js';
 import { createBottomTabNavigator } from '@react-navigation/bottom-tabs';
 import FirstPage from './Screen/FirstPage.js';
 import Habits from './Screen/Habits.js';
+import TodoModal from './Screen/TodoModal.js';
 const AppStack = createStackNavigator();
 const Tab = createBottomTabNavigator();
 const App = () => {
@@ -33,6 +34,7 @@ const App = () => {
         <AppStack.Screen name="Exemple" component={Exemple} />
         <AppStack.Screen name="FirstPage" component={FirstPage} />
         <AppStack.Screen name="AddListModal" component={AddListModal} />
+        <AppStack.Screen name="TodoModal" component={TodoModal} />
         <AppStack.Screen name="Habits" component={Habits} />
         
       </AppStack.Navigator>

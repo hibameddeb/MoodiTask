@@ -15,7 +15,7 @@ const CustomDrawerContent = ({ navigation }) => {
       <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Habits')}>
         <Text style={styles.menuText}>👤 Habits</Text>
       </TouchableOpacity>
-      <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Exemple')}>
+      <TouchableOpacity style={styles.menuItem} onPress={() => navigation.navigate('Cards')}>
         <Text style={styles.menuText}>👤 Exemple</Text>
       </TouchableOpacity>
     </View>
@@ -24,7 +24,7 @@ const CustomDrawerContent = ({ navigation }) => {
 
 const Drawer = createDrawerNavigator();
 
-// Drawer Navigator is here, no need to wrap in another NavigationContainer
+
 export default function FirstPage() {
   return (
     <Drawer.Navigator
