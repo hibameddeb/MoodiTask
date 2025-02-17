@@ -5,15 +5,18 @@ import {
 } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
 import { TextInput } from 'react-native-paper';
+import DateTimePicker from '@react-native-community/datetimepicker';
 import { db, auth, addDoc, collection } from '../firebaseConfig';  
 import { useNavigation } from '@react-navigation/native'; 
 
 function AddListModal() {
-    const navigation = useNavigation();  // Hook for navigation
+    const navigation = useNavigation();
 
     const backgroundColors = ["#3559cb", "#C70039", "#581845", "#DAF7A6", "#FF5733", "#cb356d"];
     const [name, setName] = useState("");
     const [color, setColor] = useState(backgroundColors[0]);
+    const [selectedDate, setSelectedDate] = useState(new Date());
+    const [showDatePicker, setShowDatePicker] = useState(false);
     const [loading, setLoading] = useState(false);
 
     const renderColors = () => backgroundColors.map(colorItem => (
@@ -42,6 +45,7 @@ function AddListModal() {
                 name, 
                 color, 
                 userId: user.uid, 
+                selectedDate: selectedDate.toISOString(),
                 createdAt: new Date() 
             });
 
@@ -72,6 +76,20 @@ function AddListModal() {
                         onChangeText={setName}
                         value={name} 
                     />
+                    <TouchableOpacity onPress={() => setShowDatePicker(true)} style={styles.datePickerButton}>
+                        <Text style={styles.datePickerText}>Select Date: {selectedDate.toDateString()}</Text>
+                    </TouchableOpacity>
+                    {showDatePicker && (
+                        <DateTimePicker 
+                            value={selectedDate}
+                            mode="date"
+                            display="default"
+                            onChange={(event, date) => {
+                                setShowDatePicker(false);
+                                if (date) setSelectedDate(date);
+                            }}
+                        />
+                    )}
                     <View style={styles.colorContainer}>{renderColors()}</View>
                     <TouchableOpacity 
                         style={[styles.createButton, { backgroundColor: color }]} 
@@ -141,6 +159,18 @@ const styles = StyleSheet.create({
         top: 20,
         right: 20,
     },
+    datePickerButton: {
+        padding: 10,
+        backgroundColor: "#f0f0f0",
+        borderRadius: 5,
+        marginBottom: 20,
+        alignItems: "center",
+    },
+    datePickerText: {
+        fontSize: 16,
+        color: "#333",
+    },
 });
 
 export default AddListModal;
+

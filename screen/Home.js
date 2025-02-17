@@ -1,12 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import { 
-    View, Text, StyleSheet, SafeAreaView, FlatList, TouchableOpacity, Dimensions 
-} from 'react-native';
-import { AntDesign } from '@expo/vector-icons';
-import { format, startOfWeek, addDays, isSameDay } from 'date-fns';
-import Carousel from 'react-native-reanimated-carousel';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, FlatList } from 'react-native';
+import Swiper from 'react-native-swiper';
+import { format, addDays ,isSameDay} from 'date-fns';
 import { db, auth, collection, query, where, getDocs, orderBy } from '../firebaseConfig';
-import { useNavigation, useFocusEffect } from '@react-navigation/native'; // Import useFocusEffect
+import { useNavigation, useFocusEffect } from '@react-navigation/native'; 
+import Cards from "./Cards";
+import { AntDesign } from '@expo/vector-icons';
 const { width } = Dimensions.get('window');
 
 export default function Home() {
@@ -14,13 +13,11 @@ export default function Home() {
     const [lists, setLists] = useState([]);
     const [user, setUser] = useState(null);
     const navigation = useNavigation();
+    const [weekOffset, setWeekOffset] = useState(0);
 
-    
     useFocusEffect(
         React.useCallback(() => {
-            if (user) {
-                fetchListsForDate(user.uid, selectedDate);
-            }
+            if (user) fetchListsForDate(user.uid, selectedDate);
         }, [user, selectedDate])
     );
 
@@ -33,85 +30,52 @@ export default function Home() {
     }, []);
 
     const fetchListsForDate = async (userId, date) => {
-        const startOfDay = new Date(date);
-        startOfDay.setHours(0, 0, 0, 0);
-        const endOfDay = new Date(date);
-        endOfDay.setHours(23, 59, 59, 999);
-
         const listsQuery = query(
             collection(db, 'userId'),
             where('userId', '==', userId),
-            where('date', '>=', startOfDay),
-            where('date', '<=', endOfDay),
+            where('date', '>=', date),
+            where('date', '<=', addDays(date, 1)),
             orderBy('date', 'desc')
         );
         const querySnapshot = await getDocs(listsQuery);
         setLists(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     };
 
-    const handleDateSelect = (date) => {
-        setSelectedDate(date);
-        if (user) fetchListsForDate(user.uid, date);
+    const getWeekDays = (offset) => {
+        return Array.from({ length: 7 }).map((_, index) => {
+            const date = addDays(new Date(), index + offset * 7);
+            return { weekday: format(date, 'EEE'), date };
+        });
     };
-
-    const renderCalendarItem = ({ item }) => {
-        const isActive = isSameDay(selectedDate, item.date);
-        return (
-            <TouchableOpacity
-                key={item.date.toString()} // Add a unique key
-                style={[styles.calendarItem, isActive && styles.activeCalendarItem]}
-                onPress={() => handleDateSelect(item.date)}
-            >
-                <Text style={[styles.calendarDay, isActive && styles.activeCalendarDay]}>{item.weekday}</Text>
-                <Text style={[styles.calendarDate, isActive && styles.activeCalendarDate]}>{item.date.getDate()}</Text>
-            </TouchableOpacity>
-        );
-    };
-
-    const renderListItem = ({ item }) => (
-        <View style={styles.listItem}>
-            <Text style={styles.listTitle}>{item.name}</Text>
-            <Text style={styles.listDate}>{format(item.createdAt.toDate(), 'PPPP')}</Text>
-        </View>
-    );
-
-    const weekDays = Array.from({ length: 7 }).map((_, index) => {
-        const date = addDays(startOfWeek(new Date()), index);
-        return {
-            weekday: format(date, 'EEE'),
-            date,
-        };
-    });
 
     return (
         <SafeAreaView style={styles.container}>
-            <View style={styles.header}>
-                <Text style={styles.headerTitle}>Your Schedule</Text>
-            </View>
-
-            <Carousel
+            <Text style={styles.title}>My Schedule</Text>
+            <Swiper
                 width={width}
                 height={100}
-                data={[weekDays]} 
                 loop={false}
-                defaultIndex={0} 
-                renderItem={({ item }) => (
-                    <View style={styles.calendarRow}>
-                        {item.map((day, index) => renderCalendarItem({ item: day, index }))}
+                 showsPagination={false} 
+                onIndexChanged={(index) => setWeekOffset(index)}>
+                {[...Array(52)].map((_, index) => (
+                    <View key={index} style={styles.calendarRow}>
+                        {getWeekDays(index).map((day) => (
+                            <TouchableOpacity
+                                key={day.date.toString()}
+                                style={[styles.calendarItem, isSameDay(selectedDate, day.date) && styles.activeCalendarItem]}
+                                onPress={() => setSelectedDate(day.date)}>
+                                <Text style={[styles.calendarDay, isSameDay(selectedDate, day.date) && styles.activeCalendarDay]}>{day.weekday}</Text>
+                                <Text style={[styles.calendarDate, isSameDay(selectedDate, day.date) && styles.activeCalendarDate]}>{day.date.getDate()}</Text>
+                            </TouchableOpacity>
+                        ))}
                     </View>
-                )}
-            />
+                ))}
+            </Swiper>
+
 
             <View style={styles.listsContainer}>
                 <Text style={styles.listsTitle}>Lists for {format(selectedDate, 'PPPP')}</Text>
-                <FlatList
-                    data={lists}
-                    keyExtractor={(item) => item.id.toString()} 
-                    horizontal={true}
-                    showsHorizontalScrollIndicator={false}
-                    renderItem={({ item }) => renderListItem(item)} 
-                    keyboardShouldPersistTaps="always"        
-                />
+                <Cards selectedDate={selectedDate} />
             </View>
 
             <TouchableOpacity style={styles.addButton} onPress={() => navigation.navigate('AddListModal')}>
@@ -125,6 +89,12 @@ const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: '#fff',
+    },
+    title: { 
+        fontSize: 25,
+         fontWeight:'600', 
+         padding: 16,
+        textAlign: 'center' 
     },
     header: {
         padding: 16,
@@ -166,12 +136,13 @@ const styles = StyleSheet.create({
     listsContainer: {
         flex: 1,
         padding: 16,
-        marginTop: "-380"
+        marginTop: "-480"
     },
     listsTitle: {
         fontSize: 20,
         fontWeight: '600',
-        marginBottom: 16,
+        marginBottom: 9,
+        marginTop:10
     },
     listItem: {
         padding: 16,
