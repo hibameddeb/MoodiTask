@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { Text, TouchableOpacity, View, StyleSheet, FlatList, KeyboardAvoidingView } from 'react-native';
+import { Text, TouchableOpacity, View, StyleSheet, FlatList, KeyboardAvoidingView, Keyboard } from 'react-native';
 import { TextInput } from 'react-native-paper';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { AntDesign, Ionicons, Feather } from '@expo/vector-icons';
@@ -31,11 +31,13 @@ const TodoModal = ({ route }) => {
   };
 
   const updateTodo = async (index) => {
+    if (!editText.trim()) return;
     const updatedCards = [...cards];
     updatedCards[index].title = editText;
     await updateDoc(doc(db, 'userId', list.id), { cards: updatedCards });
     setEditIndex(null);
     setEditText('');
+    Keyboard.dismiss();
   };
 
   const addTodo = async () => {
@@ -44,6 +46,7 @@ const TodoModal = ({ route }) => {
       cards: arrayUnion({ title: newCard, completed: false })
     });
     setNewCard('');
+    Keyboard.dismiss();
   };
 
   const renderCards = ({ item, index }) => (
@@ -56,13 +59,12 @@ const TodoModal = ({ route }) => {
           style={styles.input}
           value={editText}
           onChangeText={setEditText}
+          onBlur={() => setEditIndex(null)}
           onSubmitEditing={() => updateTodo(index)}
           autoFocus
         />
       ) : (
-        <TouchableOpacity>
-          <Text style={[styles.todo, { textDecorationLine: item.completed ? 'line-through' : 'none' }]}>{item.title}</Text>
-        </TouchableOpacity>
+        <Text style={[styles.todo, { textDecorationLine: item.completed ? 'line-through' : 'none' }]}>{item.title}</Text>
       )}
       <TouchableOpacity onPress={() => {
         setEditIndex(index);
@@ -87,15 +89,14 @@ const TodoModal = ({ route }) => {
 
         <FlatList data={cards} renderItem={renderCards} keyExtractor={(item, index) => index.toString()} />
 
-         <View style={styles.footer}>
-          <TextInput style={styles.input} placeholder="Add a task..." value={newCard} onChangeText={setNewCard} />
+        <View style={[styles.footer, { alignItems: 'center' }]}>  
+        <TextInput style={styles.input} placeholder="Add a task..." value={newCard} onChangeText={setNewCard} />
           <TouchableOpacity style={[styles.addButton, { backgroundColor: list.color }]} onPress={addTodo} activeOpacity={0.7}>
             <AntDesign name="plus" size={16} color="#fff" />
           </TouchableOpacity>
         </View>
       </SafeAreaView>
     </KeyboardAvoidingView>
-    
   );
 };
 
@@ -108,7 +109,8 @@ const styles = StyleSheet.create({
   input: { flex: 1, height: 48, borderWidth: 1, borderRadius: 6, marginRight: 8, paddingHorizontal: 8 },
   addButton: { padding: 16, borderRadius: 4 },
   closeButton: { position: 'absolute', top: 20, right: 20, zIndex: 10 },
-  cardContainer: { flexDirection: 'row', alignItems: 'center', padding: 16 },
-  todo: { fontSize: 16, marginLeft: 10 },
+  cardContainer: { flexDirection: 'row', alignItems: 'center', padding: 16, justifyContent: 'space-between' },
+  todo: { fontSize: 16, marginLeft: 20},
 });
+
 export default TodoModal;
