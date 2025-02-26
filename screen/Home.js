@@ -1,19 +1,22 @@
-import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, FlatList } from 'react-native';
+import React, { useState, useEffect, useRef } from 'react';
+import { View, Text, StyleSheet, SafeAreaView, TouchableOpacity, Dimensions, FlatList, TouchableWithoutFeedback } from 'react-native';
 import Swiper from 'react-native-swiper';
-import { format, addDays ,isSameDay} from 'date-fns';
+import moment from 'moment';
+import { format, addDays, isSameDay } from 'date-fns';
 import { db, auth, collection, query, where, getDocs, orderBy } from '../firebaseConfig';
 import { useNavigation, useFocusEffect } from '@react-navigation/native'; 
 import Cards from "./Cards";
 import { AntDesign } from '@expo/vector-icons';
+
 const { width } = Dimensions.get('window');
 
 export default function Home() {
     const [selectedDate, setSelectedDate] = useState(new Date());
     const [lists, setLists] = useState([]);
+    const [week, setWeek] = useState(0);
     const [user, setUser] = useState(null);
     const navigation = useNavigation();
-    const [weekOffset, setWeekOffset] = useState(0);
+    const swiper = useRef(null);
 
     useFocusEffect(
         React.useCallback(() => {
@@ -31,47 +34,68 @@ export default function Home() {
 
     const fetchListsForDate = async (userId, date) => {
         const listsQuery = query(
-            collection(db, 'userId'),
+            collection(db, 'userid'), // Corrected collection name
             where('userId', '==', userId),
-            where('date', '>=', date),
-            where('date', '<=', addDays(date, 1)),
+            where('date', '>=', moment(date).startOf('day').toDate()),
+            where('date', '<=', moment(date).endOf('day').toDate()),
             orderBy('date', 'desc')
         );
         const querySnapshot = await getDocs(listsQuery);
         setLists(querySnapshot.docs.map(doc => ({ id: doc.id, ...doc.data() })));
     };
 
-    const getWeekDays = (offset) => {
-        return Array.from({ length: 7 }).map((_, index) => {
-            const date = addDays(new Date(), index + offset * 7);
-            return { weekday: format(date, 'EEE'), date };
+    const weeks = React.useMemo(() => {
+        const start = moment().add(week, 'weeks').startOf('week');
+        return [-1, 0, 1].map(adj => {
+            return Array.from({ length: 7 }).map((_, index) => {
+                const date = moment(start).add(adj, 'week').add(index, 'day');
+                return {
+                    weekday: date.format('ddd'),
+                    date: date.toDate(),
+                };
+            });
         });
-    };
+    }, [week]);
 
     return (
         <SafeAreaView style={styles.container}>
             <Text style={styles.title}>My Schedule</Text>
             <Swiper
-                width={width}
-                height={100}
+                index={1}
+                ref={swiper}
                 loop={false}
-                 showsPagination={false} 
-                onIndexChanged={(index) => setWeekOffset(index)}>
-                {[...Array(52)].map((_, index) => (
-                    <View key={index} style={styles.calendarRow}>
-                        {getWeekDays(index).map((day) => (
-                            <TouchableOpacity
-                                key={day.date.toString()}
-                                style={[styles.calendarItem, isSameDay(selectedDate, day.date) && styles.activeCalendarItem]}
-                                onPress={() => setSelectedDate(day.date)}>
-                                <Text style={[styles.calendarDay, isSameDay(selectedDate, day.date) && styles.activeCalendarDay]}>{day.weekday}</Text>
-                                <Text style={[styles.calendarDate, isSameDay(selectedDate, day.date) && styles.activeCalendarDate]}>{day.date.getDate()}</Text>
-                            </TouchableOpacity>
-                        ))}
+                showsPagination={false}
+                onIndexChanged={ind => {
+                    if (ind === 1) return;
+                    const index = ind - 1;
+                    setSelectedDate(moment(selectedDate).add(index, 'week').toDate());
+                    setTimeout(() => {
+                        setWeek(week + index);
+                        swiper.current.scrollTo(1, false);
+                    }, 10);
+                }}>
+                {weeks.map((dates, index) => (
+                    <View style={styles.itemRow} key={index}>
+                        {dates.map((item, dateIndex) => {
+                            const isActive = isSameDay(selectedDate, item.date);
+                            return (
+                                <TouchableWithoutFeedback
+                                    key={dateIndex}
+                                    onPress={() => setSelectedDate(item.date)}>
+                                    <View style={[styles.item, isActive && styles.activeItem]}>
+                                        <Text style={[styles.itemWeekday, isActive && styles.activeText]}>
+                                            {item.weekday}
+                                        </Text>
+                                        <Text style={[styles.itemDate, isActive && styles.activeText]}>
+                                            {item.date.getDate()}
+                                        </Text>
+                                    </View>
+                                </TouchableWithoutFeedback>
+                            );
+                        })}
                     </View>
                 ))}
             </Swiper>
-
 
             <View style={styles.listsContainer}>
                 <Text style={styles.listsTitle}>Lists for {format(selectedDate, 'PPPP')}</Text>
@@ -92,70 +116,20 @@ const styles = StyleSheet.create({
     },
     title: { 
         fontSize: 25,
-         fontWeight:'600', 
-         padding: 16,
-        textAlign: 'center' 
-    },
-    header: {
+        fontWeight: '600',
         padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-    },
-    headerTitle: {
-        fontSize: 24,
-        fontWeight: 'bold',
-    },
-    calendarRow: {
-        flexDirection: 'row',
-        justifyContent: 'space-between',
-        paddingHorizontal: 16,
-    },
-    calendarItem: {
-        alignItems: 'center',
-        padding: 8,
-        borderRadius: 8,
-    },
-    activeCalendarItem: {
-        backgroundColor: '#007AFF',
-    },
-    calendarDay: {
-        fontSize: 14,
-        color: '#333',
-    },
-    activeCalendarDay: {
-        color: '#fff',
-    },
-    calendarDate: {
-        fontSize: 16,
-        fontWeight: 'bold',
-        color: '#333',
-    },
-    activeCalendarDate: {
-        color: '#fff',
+        textAlign: 'center',
     },
     listsContainer: {
         flex: 1,
         padding: 16,
-        marginTop: "-480"
+        marginTop: -80, 
     },
     listsTitle: {
         fontSize: 20,
         fontWeight: '600',
         marginBottom: 9,
-        marginTop:10
-    },
-    listItem: {
-        padding: 16,
-        borderBottomWidth: 1,
-        borderBottomColor: '#ccc',
-    },
-    listTitle: {
-        fontSize: 16,
-        fontWeight: 'bold',
-    },
-    listDate: {
-        fontSize: 14,
-        color: '#666',
+        marginTop: -140,
     },
     addButton: {
         position: 'absolute',
@@ -167,5 +141,33 @@ const styles = StyleSheet.create({
         borderRadius: 28,
         alignItems: 'center',
         justifyContent: 'center',
+    },
+    itemRow: {
+        flexDirection: 'row',
+        justifyContent: 'space-around',
+        marginVertical: 10,
+    },
+    item: {
+        alignItems: 'center',
+        padding: 10,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: '#ccc',
+    },
+    activeItem: {
+        backgroundColor: '#111',
+        borderColor: '#111',
+    },
+    itemWeekday: {
+        fontSize: 14,
+        color: '#333',
+    },
+    itemDate: {
+        fontSize: 16,
+        fontWeight: 'bold',
+        color: '#333',
+    },
+    activeText: {
+        color: '#fff',
     },
 });

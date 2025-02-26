@@ -22,12 +22,13 @@ const SignupScreen = () => {
   const [secureEntry, setSecureEntry] = useState(true);
 
   const [request, response, promptAsync] = Google.useIdTokenAuthRequest({
-    clientId: 'YOUR_GOOGLE_CLIENT_ID.apps.googleusercontent.com',
+    clientId: '1037518615889-cm5vgrq57ll5qtf3fvrk24g77pu6jiev.apps.googleusercontent.com',
   });
 
   useEffect(() => {
     if (response?.type === 'success') {
       const { id_token } = response.params;
+      console.log('ID Token:', id_token);
       const credential = GoogleAuthProvider.credential(id_token);
       signInWithCredential(auth, credential)
         .then((userCredential) => {
@@ -35,11 +36,14 @@ const SignupScreen = () => {
           navigation.navigate('Home'); 
         })
         .catch((error) => {
+          console.error('Error signing in with credential:', error);
           Alert.alert('Error', error.message);
         });
+    } else if (response?.type === 'error') {
+      console.error('OAuth error:', response.error);
     }
   }, [response]);
-
+  
   const SignupSchema = Yup.object().shape({
     email: Yup.string()
       .email('Invalid email format')
