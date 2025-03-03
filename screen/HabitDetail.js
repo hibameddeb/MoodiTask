@@ -1,15 +1,33 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, StyleSheet, Pressable, ActivityIndicator } from "react-native";
+import { View, Text, StyleSheet, Pressable, ActivityIndicator, Button, Alert } from "react-native";
 import { Ionicons, MaterialIcons, Feather } from "@expo/vector-icons";
 import { doc, getDoc } from "firebase/firestore";
 import { db } from "../firebaseConfig";
-import * as Notifications from 'expo-notifications';
+import * as Notifications from "expo-notifications";
+import * as Device from "expo-device";
 
 const HabitDetail = ({ route, navigation }) => {
   const { habitId } = route.params; 
   const [habit, setHabit] = useState(null);
   const [loading, setLoading] = useState(true);
 
+  // Request permission for notifications
+  useEffect(() => {
+    const requestPermissions = async () => {
+      if (Device.isDevice) {
+        const { status } = await Notifications.getPermissionsAsync();
+        if (status !== "granted") {
+          const { status: newStatus } = await Notifications.requestPermissionsAsync();
+          if (newStatus !== "granted") {
+            Alert.alert("Permission required", "Please enable notifications in settings.");
+          }
+        }
+      }
+    };
+    requestPermissions();
+  }, []);
+
+  // Fetch habit details
   useEffect(() => {
     const fetchHabitDetails = async () => {
       try {
@@ -26,6 +44,25 @@ const HabitDetail = ({ route, navigation }) => {
     };
     fetchHabitDetails();
   }, [habitId]);
+
+  // Function to schedule notification
+  const scheduleNotification = async () => {
+    if (!habit || !habit.reminder) {
+      Alert.alert("No reminder set", "Please set a reminder for this habit.");
+      return;
+    }
+
+    await Notifications.scheduleNotificationAsync({
+      content: {
+        title: "Habit Reminder ⏰",
+        body: `Don't forget to complete your habit: ${habit.title}!`,
+        sound: "default",
+      },
+      trigger: new Date(habit.reminder.toDate()), // Schedule based on Firebase timestamp
+    });
+
+    Alert.alert("Reminder Set", "You will receive a notification at the set time.");
+  };
 
   if (loading) {
     return (
@@ -80,6 +117,8 @@ const HabitDetail = ({ route, navigation }) => {
             </Text>
             <Text style={styles.detailValue}>{habit.repeat}</Text>
           </View>
+
+          <Button title="Set Notification Reminder" onPress={scheduleNotification} color="#e04f5f" />
         </View>
       ) : (
         <Text style={styles.errorText}>Habit not found</Text>

@@ -135,7 +135,7 @@ const styles = StyleSheet.create({
         position: 'absolute',
         bottom: 20,
         right: 20,
-        backgroundColor: '#007AFF',
+        backgroundColor: '#F5B7B1',
         width: 56,
         height: 56,
         borderRadius: 28,
@@ -155,8 +155,8 @@ const styles = StyleSheet.create({
         borderColor: '#ccc',
     },
     activeItem: {
-        backgroundColor: '#111',
-        borderColor: '#111',
+        backgroundColor: '#F5B7B1',
+        borderColor: '#F5B7B1',
     },
     itemWeekday: {
         fontSize: 14,

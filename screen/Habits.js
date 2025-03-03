@@ -1,9 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { View, Pressable, StyleSheet, Text, ScrollView } from 'react-native';
+import { View, Pressable, StyleSheet, Text, ScrollView, Alert } from 'react-native';
 import { AntDesign } from '@expo/vector-icons';
 import { useNavigation, useFocusEffect } from '@react-navigation/native';
-import { db, collection, getDocs, query, where, updateDoc, doc, auth } from '../firebaseConfig';
+import { db } from '../firebaseConfig';  // Make sure you import the database from your firebaseConfig file
+import { collection, getDocs, query, where, updateDoc, doc, deleteDoc } from 'firebase/firestore'; // Correct imports from Firebase SDK
 import { Checkbox } from 'react-native-paper';
+import { auth } from '../firebaseConfig'; // Assuming auth is configured in the same firebaseConfig
 
 const Habits = () => {
   const [habits, setHabits] = useState([]);
@@ -49,7 +51,35 @@ const Habits = () => {
       console.error("Error updating habit status:", error);
     }
   };
-  
+
+  const handleDelete = async (habitId) => {
+    Alert.alert(
+      "Delete Habit",
+      "Are you sure you want to delete this habit?",
+      [
+        {
+          text: "Cancel",
+          style: "cancel",
+        },
+        {
+          text: "Delete",
+          style: "destructive",
+          onPress: async () => {
+            try {
+              // Corrected deleteDoc usage
+              const habitDocRef = doc(db, 'habits', habitId);
+              await deleteDoc(habitDocRef);
+              setHabits((prevHabits) => prevHabits.filter((habit) => habit.id !== habitId));
+              Alert.alert("Success", "Habit deleted successfully.");
+            } catch (error) {
+              console.error("Error deleting habit:", error);
+              Alert.alert("Error", "There was an issue deleting the habit.");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <ScrollView style={styles.container}>
@@ -80,6 +110,9 @@ const Habits = () => {
               onPress={() => handleCheck(habit.id, !habit.completed)}
               color="#E04F5F"
             />
+            <Pressable onPress={() => handleDelete(habit.id)} style={styles.deleteButton}>
+              <AntDesign name="delete" size={20} color="#E04F5F" />
+            </Pressable>
           </View>
         ))
       ) : (
@@ -90,8 +123,8 @@ const Habits = () => {
 };
 
 const styles = StyleSheet.create({
-  container: { flex: 1, backgroundColor: "#FFF5F7", padding: 20 },
-  title: { fontSize: 28, fontWeight: "700", color: "#E04F5F", marginBottom: 20, textAlign: 'center' },
+  container: { flex: 1, backgroundColor: "#FFF5F7", padding: 30 },
+  title: { fontSize: 28, fontWeight: "700", color: "#E04F5F", marginBottom: 10, textAlign: 'center' ,padding:35},
   optionContainer: { flexDirection: "row", justifyContent: "center", marginBottom: 20 },
   optionButton: { paddingHorizontal: 20, paddingVertical: 8, borderRadius: 20, backgroundColor: "#FFE6E8", marginHorizontal: 10, borderWidth: 1, borderColor: "#E04F5F" },
   selectedOption: { backgroundColor: "#E04F5F", borderColor: "#E04F5F" },
@@ -102,7 +135,8 @@ const styles = StyleSheet.create({
   habitTitle: { fontSize: 16, fontWeight: '600', color: "#333", flexWrap: 'wrap', maxWidth: '80%' },
   noHabitsText: { fontSize: 14, textAlign: 'center', marginTop: 20, color: "#b2bec3" },
   addButtonContainer: { position: 'absolute', right: 2, zIndex: 1 },
-  addButton: { backgroundColor: "#E04F5F", padding: 8, borderRadius: 50, alignItems: 'center', justifyContent: 'center' }
+  addButton: { backgroundColor: "#E04F5F", padding: 8, borderRadius: 50, alignItems: 'center', justifyContent: 'center' },
+  deleteButton: { paddingLeft: 10 },
 });
 
 export default Habits;
