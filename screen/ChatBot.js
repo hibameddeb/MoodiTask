@@ -3,7 +3,7 @@ import { View, Text, TextInput, TouchableOpacity, ScrollView, StyleSheet } from 
 import axios from "axios";
 
 const API_URL = "https://openrouter.ai/api/v1/chat/completions";
-const API_KEY = "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";
+const API_KEY = "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";
 
 export function ChatBot({ route, navigation }) {
   const mood = route.params?.mood || "Neutral"; 

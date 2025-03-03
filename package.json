@@ -43,7 +43,8 @@
     "yup": "^1.6.1",
     "expo-notifications": "~0.29.13",
     "expo-image-picker": "~16.0.6",
-    "react-native-svg": "15.8.0"
+    "react-native-svg": "15.8.0",
+    "expo-device": "~7.0.2"
   },
   "devDependencies": {
     "@babel/core": "^7.20.0"

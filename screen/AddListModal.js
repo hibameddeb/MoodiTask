@@ -11,8 +11,7 @@ import { useNavigation } from '@react-navigation/native';
 
 function AddListModal() {
     const navigation = useNavigation();
-
-    const backgroundColors = ["#3559cb", "#C70039", "#581845", "#DAF7A6", "#FF5733", "#cb356d"];
+    const backgroundColors = ["#E04F5F", "#FFB6C1", "#FFD3B6", "#FF9A8B", "#FDCBBA", "#FF6B6B"];
     const [name, setName] = useState("");
     const [color, setColor] = useState(backgroundColors[0]);
     const [selectedDate, setSelectedDate] = useState(new Date());

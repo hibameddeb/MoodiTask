@@ -47,14 +47,20 @@ const SignupScreen = () => {
   const SignupSchema = Yup.object().shape({
     email: Yup.string()
       .email('Invalid email format')
+      .matches(/^\S+@\S+\.\S+$/, "Invalid email format")
       .required('Email is required'),
     password: Yup.string()
-      .min(6, 'Password must be at least 6 characters')
+      .min(8, 'Password must be at least 8 characters')
+      .matches(/[A-Z]/, 'Must include at least one uppercase letter')
+      .matches(/[a-z]/, 'Must include at least one lowercase letter')
+      .matches(/\d/, 'Must include at least one number')
+      .matches(/[!@#$%^&*]/, 'Must include at least one special character (!@#$%^&*)')
       .required('Password is required'),
     confirmPassword: Yup.string()
       .oneOf([Yup.ref('password'), null], 'Passwords must match')
       .required('Confirm password is required'),
   });
+  
 
   const handleSignup = async (values) => {
     const { email, password } = values;
@@ -111,8 +117,11 @@ const SignupScreen = () => {
                 onBlur={handleBlur('password')}
                 value={values.password}
               />
-              <TouchableOpacity onPress={() => setSecureEntry((prev) => !prev)}>
-                <SimpleLineIcons name={secureEntry ? "eye" : "eye-off"} size={20} />
+              <TouchableOpacity
+                onPress={() => setSecureEntry((prev) => !prev)}
+                style={styles.eyeIcon}
+              >
+                <Ionicons name={secureEntry ? "eye-off" : "eye"} size={20} />
               </TouchableOpacity>
             </View>
             {touched.password && errors.password && <Text style={styles.errorText}>{errors.password}</Text>}
@@ -128,8 +137,11 @@ const SignupScreen = () => {
                 onBlur={handleBlur('confirmPassword')}
                 value={values.confirmPassword}
               />
-              <TouchableOpacity onPress={() => setSecureEntry((prev) => !prev)}>
-                <SimpleLineIcons name={secureEntry ? "eye" : "eye-off"} size={20} />
+              <TouchableOpacity
+                onPress={() => setSecureEntry((prev) => !prev)}
+                style={styles.eyeIcon}
+              >
+                <Ionicons name={secureEntry ? "eye-off" : "eye"} size={20} />
               </TouchableOpacity>
             </View>
             {touched.confirmPassword && errors.confirmPassword && <Text style={styles.errorText}>{errors.confirmPassword}</Text>}
@@ -198,9 +210,10 @@ const styles = StyleSheet.create({
     borderRadius: 100,
     backgroundColor: '#FFFFFF',
     paddingHorizontal: 10,
-    flexDirection: "row",
-    alignItems: "center",
+    flexDirection: 'row',
+    alignItems: 'center',
     marginVertical: 9,
+    position: 'relative',
   },
   input: {
     flex: 1,
@@ -208,6 +221,12 @@ const styles = StyleSheet.create({
     height: 50,
     fontSize: 16,
     color: '#000',
+  },
+  eyeIcon: {
+    position: 'absolute',
+    right: 10,
+    top: '50%',
+    transform: [{ translateY: -10 }],
   },
   errorText: {
     color: 'red',

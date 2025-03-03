@@ -1,9 +1,10 @@
 import React, { useEffect, useState } from "react";
-import { View, Text, Pressable, StyleSheet, Image, ActivityIndicator } from "react-native";
+import { View, Text, Pressable, StyleSheet, Image, ActivityIndicator, Alert } from "react-native";
 import { createDrawerNavigator } from "@react-navigation/drawer";
 import { Ionicons, MaterialCommunityIcons } from "@expo/vector-icons";
-import { getDoc, doc, onSnapshot } from "firebase/firestore"; // Ajout de onSnapshot
-import { db, auth } from "../firebaseConfig"; // Firestore & Auth
+import { getDoc, doc, onSnapshot } from "firebase/firestore";
+import { signOut } from "firebase/auth"; 
+import { db, auth } from "../firebaseConfig"; 
 import Home from "./Home";
 import Habits from "./Habits";
 import MoodTracker from "./MoodTracker";
@@ -23,8 +24,6 @@ const CustomDrawerContent = ({ navigation }) => {
     }
 
     const userDocRef = doc(db, "profiles", user.uid);
-
-    // Écoute en temps réel les modifications du profil
     const unsubscribe = onSnapshot(userDocRef, (snapshot) => {
       if (snapshot.exists()) {
         const data = snapshot.data();
@@ -42,8 +41,30 @@ const CustomDrawerContent = ({ navigation }) => {
       setLoading(false);
     });
 
-    return () => unsubscribe(); // Se désabonner de l'écoute lorsque le composant est démonté
+    return () => unsubscribe(); 
   }, []);
+
+  const handleSignOut = () => {
+    Alert.alert(
+      "Sign Out",
+      "Are you sure you want to sign out?",
+      [
+        { text: "Cancel", style: "cancel" },
+        {
+          text: "Yes",
+          onPress: async () => {
+            try {
+              await signOut(auth);
+              navigation.replace("Login"); 
+            } catch (error) {
+              console.error("Sign out error:", error);
+              Alert.alert("Error", "Failed to sign out. Please try again.");
+            }
+          },
+        },
+      ]
+    );
+  };
 
   return (
     <View style={styles.menuContainer}>
@@ -81,6 +102,12 @@ const CustomDrawerContent = ({ navigation }) => {
       </Pressable>
 
       <View style={styles.divider} />
+
+      {/* Sign Out Button */}
+      <Pressable style={styles.signOutButton} onPress={handleSignOut}>
+        <Ionicons name="log-out-outline" size={22} color="white" />
+        <Text style={styles.signOutText}>Sign Out</Text>
+      </Pressable>
     </View>
   );
 };
@@ -147,6 +174,21 @@ const styles = StyleSheet.create({
     fontSize: 18,
     fontWeight: "600",
     color: "#333",
+    marginLeft: 10,
+  },
+  signOutButton: {
+    flexDirection: "row",
+    alignItems: "center",
+    justifyContent: "center",
+    backgroundColor: "#17b198",
+    paddingVertical: 12,
+    borderRadius: 10,
+    marginTop: 20,
+  },
+  signOutText: {
+    fontSize: 18,
+    fontWeight: "600",
+    color: "white",
     marginLeft: 10,
   },
 });
